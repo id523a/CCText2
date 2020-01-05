@@ -1,4 +1,4 @@
-# CCText
+# CCText2
 Stores files for use with ComputerCraft.
 
 # How to Load Music into Cassette Tapes (Minecraft 1.7.10, ComputerCraft, Computronics)
