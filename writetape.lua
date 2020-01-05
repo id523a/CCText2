@@ -104,13 +104,15 @@ if (fileIsHTTP) then
 end
 
 local ctr = 0
+local byteCount = 0
 base64_decode(file.readAll(), function(byteVal)
   tape.write(byteVal)
   ctr = ctr + 1
   if (ctr >= 65536) then
+    byteCount = byteCount + 65536
     ctr = 0
     sleep(0.1)
-    print("Written ", i, " bytes")
+    print("Written ", byteCount, " bytes")
   end
 end)
 file.close()
