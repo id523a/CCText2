@@ -21,6 +21,8 @@ Stores files for use with ComputerCraft.
     This writes a value into the tape that indicates the correct playback speed.  
 10. Enter `writetape <URL>` where `<URL>` is replaced with the raw download URL from step 5.  
 	This downloads the file, decodes it, and writes it to the tape.  
-11. Enter `tape label "<something>"` to label the tape.  
-12. To play the tape: `tape play`  
+11. Enter `tape silence` to fill the rest of the tape with silence.  
+	This prevents the clicking noises when the tape ends.  
+12. Enter `tape label "<something>"` to label the tape.  
+13. To play the tape: `tape play`  
     To stop and rewind the tape: `tape stop`  
