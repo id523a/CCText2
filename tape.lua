@@ -3,6 +3,7 @@ function printHelp()
   print("tape play (<side>)")
   print("tape rewind (<side>)")
   print("tape setspeed (<side>) <value>")
+  print("tape silence (<side>)")
   print("tape stop (<side>)")
 end
 
@@ -39,6 +40,7 @@ local expectedArgs = {
   ["play"] = 0,
   ["rewind"] = 0,
   ["setspeed"] = 1,
+  ["silence"] = 0,
   ["stop"] = 0
 }
 expectedArgs = expectedArgs[cmd]
@@ -78,15 +80,28 @@ elseif (cmd == "setspeed") then
   local newSpeed = tonumber(args[1])
   if (newSpeed == nil) then
     print("Speed must be a number.")
-	return
+    return
   elseif (newSpeed >= 32768 and newSpeed <= 65536) then
     newSpeed = newSpeed / 32768
   elseif (newSpeed < 1.0 or newSpeed > 2.0) then
     print("Speed must be between 1 and 2 (multiplier)")
-	print("or between 32768 and 65536 (samplerate).")
-	return
+    print("or between 32768 and 65536 (samplerate).")
+    return
   end
   tape.stop()
   tape.seek(-tape.getSize())
   tape.write(math.floor((newSpeed - 1) * 255 + 0.5))
+elseif (cmd == "silence") then
+  local remainder = tape.seek(tape.getSize())
+  tape.seek(-remainder)
+  local ctr = 0
+  for i = 1,remainder do
+    tape.write(85)
+    ctr = ctr + 1
+    if (ctr >= 65536) then
+      ctr = 0
+      sleep(0.1)
+      print("Written ", i, " bytes")
+    end
+  end
 end
