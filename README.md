@@ -12,7 +12,7 @@ Stores files for use with ComputerCraft.
 5. Get the raw download link for the text file. If you uploaded it to GitHub, it will be something that begins with `https://raw.githubusercontent.com/`.  
 6. In Minecraft, make sure you have a [ComputerCraft computer](http://www.computercraft.info/wiki/Computer) with a [Computronics tape drive](https://wiki.vexatos.com/wiki:computronics:tape) next to it.  
 7. On the computer, enter:  
-    `pastebin get Gk7WtufB github` to install [this program](https://pastebin.com/Gk7WtufB) that fetches text files from GitHub.  
+    `pastebin get YVfC4ner github` to install [this program](https://pastebin.com/YVfC4ner) that fetches text files from GitHub.  
     `github id523a/CCText2/master/writetape.lua writetape` to install [writetape.lua](https://github.com/id523a/CCText2/blob/master/writetape.lua).  
     `github id523a/CCText2/master/tape.lua tape` to install [tape.lua](https://github.com/id523a/CCText2/blob/master/tape.lua).  
 8. Insert a blank cassette tape into the tape drive, of the correct length.  
