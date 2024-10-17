@@ -28,7 +28,10 @@ if (size > destTape.getSize()) then
 end
 masterTape.seek(-size)
 destTape.seek(-destTape.getSize())
-local chunkSize = 4096 * 15
+local chunkSize = destTape.getSize()
+while chunkSize > 65536 do
+  chunkSize = chunkSize / 2
+end
 local chunks = size / chunkSize
 for i = 1,chunks,1 do
   for j = 1,chunkSize,1 do

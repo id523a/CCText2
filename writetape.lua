@@ -115,4 +115,5 @@ base64_decode(file.readAll(), function(byteVal)
     print("Written ", byteCount, " bytes")
   end
 end)
+print("Done. ", byteCount, " bytes")
 file.close()

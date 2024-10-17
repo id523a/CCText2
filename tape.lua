@@ -1,3 +1,5 @@
+local baseSpeed = 32768
+
 function printHelp()
   print("tape label (<side>) <label>")
   print("tape play (<side>)")
@@ -81,11 +83,11 @@ elseif (cmd == "setspeed") then
   if (newSpeed == nil) then
     print("Speed must be a number.")
     return
-  elseif (newSpeed >= 32768 and newSpeed <= 65536) then
-    newSpeed = newSpeed / 32768
+  elseif (newSpeed >= baseSpeed and newSpeed <= 2 * baseSpeed) then
+    newSpeed = newSpeed / baseSpeed
   elseif (newSpeed < 1.0 or newSpeed > 2.0) then
     print("Speed must be between 1 and 2 (multiplier)")
-    print("or between 32768 and 65536 (samplerate).")
+    print("or a supported sample rate.")
     return
   end
   tape.stop()
