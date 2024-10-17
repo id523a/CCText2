@@ -106,4 +106,5 @@ elseif (cmd == "silence") then
       print("Written ", i, " bytes")
     end
   end
+  print("Done. ", remainder, " bytes")
 end
