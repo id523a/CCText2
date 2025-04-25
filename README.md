@@ -13,8 +13,8 @@ Stores files for use with ComputerCraft.
 6. In Minecraft, make sure you have a [ComputerCraft computer](http://www.computercraft.info/wiki/Computer) with a [Computronics tape drive](https://wiki.vexatos.com/wiki:computronics:tape) next to it.  
 7. On the computer, enter:  
     `pastebin get YVfC4ner github` to install [this program](https://pastebin.com/YVfC4ner) that fetches text files from GitHub.  
-    `github id523a/CCText2/master/writetape.lua writetape` to install [writetape.lua](https://github.com/id523a/CCText2/blob/master/writetape.lua).  
-    `github id523a/CCText2/master/tape.lua tape` to install [tape.lua](https://github.com/id523a/CCText2/blob/master/tape.lua).  
+    `github id523a/CCText2/main/writetape.lua writetape` to install [writetape.lua](https://github.com/id523a/CCText2/blob/main/writetape.lua).  
+    `github id523a/CCText2/main/tape.lua tape` to install [tape.lua](https://github.com/id523a/CCText2/blob/main/tape.lua).  
 8. Insert a blank cassette tape into the tape drive, of the correct length.  
    *Minimum tape length (mins)* = *audio length (mins)* × *chosen sample rate* / 32768  
 9. On the computer, enter: `tape setspeed <samplerate>`, where `<samplerate>` is replaced by your chosen sample rate.  
@@ -25,4 +25,4 @@ Stores files for use with ComputerCraft.
 	This prevents the clicking noises when the tape ends.  
 12. Enter `tape label "<something>"` to label the tape.  
 13. To play the tape: `tape play`  
-    To stop and rewind the tape: `tape stop`  
+    To stop and rewind the tape: `tape stop`
