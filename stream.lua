@@ -1,13 +1,13 @@
 local arguments = {...}
 local FILE_URL = arguments[1]
-local START_OFFSET = (arguments[2] or 0) * 48000 / 8
 if not FILE_URL then
-    print("stream <URL> <seconds>")
+    print("stream <URL>")
     return
 end
 
-local DOWNLOAD_CHUNK = 128 * 1024
 local PLAYBACK_CHUNK = 8 * 1024
+local DOWNLOAD_CHUNK = 32 * PLAYBACK_CHUNK
+local MIN_DOWNLOAD = 24 * PLAYBACK_CHUNK
 
 local function fetchRange(url, startByte, endByte)
     local headers = {
@@ -22,13 +22,8 @@ local function fetchRange(url, startByte, endByte)
         resp.close()
         return nil, string.format("unexpected HTTP code %d", respCode)
     end
-    
-    local body = resp.readAll()
-    resp.close()
-    if body == nil then
-        return nil, "error reading response body"
-    end
-    return body, nil
+
+    return resp, nil
 end
 
 local dfpwm = require("cc.audio.dfpwm")
@@ -37,65 +32,146 @@ if not speaker then
     error("No speaker peripheral found!", 0)
 end
 
-local decoder = dfpwm.make_decoder()
-local queuedChunk = nil
-local downloadDone = false
+local fileLength = nil
+local playbackCursor = 0
+local downloadCursor = 0
+local chunkQueue = {}
+
+local decoder = nil
+local shouldResetDecoder = true
 
 local function downloader()
-    local offset = START_OFFSET
+    local offset = 0
 
     while true do
-        -- If the queue is full, wait until the player signals a dequeue
-        while queuedChunk ~= nil do
-            os.pullEvent("chunk_dequeued")
+        -- Wait until there is something to download
+        while (downloadCursor - playbackCursor > MIN_DOWNLOAD) or (fileLength ~= nil and downloadCursor >= fileLength) do
+            os.pullEvent("wake_downloader")
         end
 
-        local body, err = fetchRange(FILE_URL, offset, offset + DOWNLOAD_CHUNK - 1)
+        -- Download a DOWNLOAD_CHUNK
+        local rangeEnd = downloadCursor + DOWNLOAD_CHUNK - 1
+        if fileLength ~= nil then
+            rangeEnd = math.min(rangeEnd, fileLength - 1)
+        end
+
+        local resp, err = fetchRange(FILE_URL, downloadCursor, rangeEnd)
+        if not resp then
+            error("Download failed at byte " .. downloadCursor .. ": " .. err, 0)
+        end
+
+        if fileLength == nil then
+            -- Try to get file length out of response headers
+            local headers = resp.getResponseHeaders()
+            local contentRange = headers["Content-Range"]
+            if contentRange then
+                local total = string.match(contentRange, "/%s*(%d+)$")
+                if total ~= nil then
+                    fileLength = tonumber(total)
+                end
+            end
+        end
+
+        local body = resp.readAll()
+        resp.close()
         if not body then
-            error("Download failed at byte " .. offset .. ": " .. err, 0)
+            error("Download failed at byte " .. downloadCursor .. ": error reading response body", 0)
         end
-        queuedChunk = body
-        offset = offset + #body
-        os.queueEvent("chunk_enqueued")
 
-        -- A short read means we've reached the end of the stream
-        if #body < DOWNLOAD_CHUNK then
-            break
+        -- Break into PLAYBACK_CHUNKs
+        local splitStart = 1
+        while splitStart <= #body do
+            local splitEnd = math.min(splitStart + PLAYBACK_CHUNK - 1, #body)
+            local subChunk = string.sub(body, splitStart, splitEnd)
+            table.insert(chunkQueue, subChunk)
+            downloadCursor = downloadCursor + splitEnd + 1 - splitStart
+            splitStart = splitEnd + 1
         end
+        os.queueEvent("wake_player")
     end
-
-    downloadDone = true
-    os.queueEvent("chunk_enqueued")  -- Wake the player if it's waiting on the final chunk
 end
 
 local function player()
     while true do
-        -- Wait until a chunk is available
-        while queuedChunk == nil do
-            if downloadDone then return end
-            os.pullEvent("chunk_enqueued")
+        -- Wait until there is something to play
+        while #chunkQueue == 0 do
+            os.pullEvent("wake_player")
         end
 
         -- Dequeue the next chunk
-        local chunk = queuedChunk
-        queuedChunk = nil
-        os.queueEvent("chunk_dequeued")
+        local chunk = table.remove(chunkQueue, 1)
+        playbackCursor = playbackCursor + #chunk;
+        os.queueEvent("wake_downloader")
 
-        -- Break into sub-chunks, decode, and play
-        local chunkOffset = 1
-        while chunkOffset <= #chunk do
-            local subEnd = math.min(chunkOffset + PLAYBACK_CHUNK - 1, #chunk)
-            local subChunk = string.sub(chunk, chunkOffset, subEnd)
-
-            local decoded = decoder(subChunk)
-
-            while not speaker.playAudio(decoded) do
-                os.pullEvent("speaker_audio_empty")
-            end
-
-            chunkOffset = subEnd + 1
+        -- Decode and play
+        if shouldResetDecoder then
+            decoder = dfpwm.make_decoder()
+            shouldResetDecoder = false
+        end
+        local decoded = decoder(chunk)
+        while not speaker.playAudio(decoded) do
+            os.pullEvent("speaker_audio_empty")
         end
     end
 end
 
-parallel.waitForAll(downloader, player)
+local function bytesToTime(byteOffset)
+    -- Convert DFPWM byte offsets to minutes and seconds.
+    local bytesPerSecond = 6000 -- DFPWM is 48 kilobits per second
+    local totalSeconds = math.floor(byteOffset / bytesPerSecond)
+    local minutes = math.floor(totalSeconds / 60)
+    local seconds = totalSeconds % 60
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
+local function drawUI(termWidth, termHeight)
+    local termWidth, termHeight = term.getSize()
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.white)
+    term.setCursorPos(1, 1)
+    term.clearLine()
+    term.write(bytesToTime(playbackCursor))
+    if fileLength ~= nil then
+        term.write(" / ")
+        term.write(bytesToTime(fileLength))
+        local playbackPos = math.floor(0.5 + termWidth * playbackCursor / fileLength)
+        local downloadPos = math.floor(0.5 + termWidth * downloadCursor / fileLength)
+        term.setCursorPos(1, 2)
+        term.setBackgroundColor(colors.gray)
+        term.clearLine()
+        term.setBackgroundColor(colors.lightBlue)
+        term.write(string.rep(" ", playbackPos))
+        term.setBackgroundColor(colors.blue)
+        term.write(string.rep(" ", downloadPos - playbackPos))
+    end
+end
+
+local function userInterface()
+    local termWidth, termHeight = term.getSize()
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.white)
+    term.clear()
+    drawUI()
+    while true do
+        local eventData = {os.pullEvent()}
+        local event = eventData[1]
+        if event == "wake_downloader" or event == "wake_player" then
+            drawUI()
+        elseif event == "mouse_click" then
+            local button = eventData[2]
+            local mouseX = eventData[3]
+            local mouseY = eventData[4]
+            if fileLength ~= nil and button == 1 and mouseY == 2 then
+                local seekPoint = (mouseX - 1) * fileLength / termWidth
+                playbackCursor = seekPoint
+                downloadCursor = seekPoint
+                chunkQueue = {}
+                shouldResetDecoder = true
+                os.queueEvent("wake_downloader")
+            end
+            drawUI()
+        end
+    end
+end
+
+parallel.waitForAll(downloader, player, userInterface)
